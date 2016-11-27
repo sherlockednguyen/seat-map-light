@@ -1,0 +1,21 @@
+{
+  "name": "seat-map-light",
+  "authors": [
+    "Dat Nguyen (sherlockednguyen@gmail.com)"
+  ],
+  "description": "create a lightweight seatmap + legends",
+  "main": "seat-map-light.directive.js, seat-map-light.tmpl.html",
+  "keywords": [
+    "seatmap",
+    "angular"
+  ],
+  "license": "MIT",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
