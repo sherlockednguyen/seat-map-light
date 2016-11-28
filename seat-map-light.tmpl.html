@@ -1,0 +1,48 @@
+<div class="seat-map-inner-container" ng-init="imgDir = 'images/icons/checkin/seat/';">
+    <div layout="row">
+        <div flex>
+            <md-button md-no-ink ng-click="vm.onSelectDeck($index)" ng-disabled="deck.length === 0" ng-class="{'md-primary' : $index === vm.currentActive.deck, 'md-raised': deck.length > 0}" ng-repeat="deck in vm.decksSetting">{{deck.displayName}}</md-button>
+            <!-- <div class="seatmap-refresh-container">
+				<span class="seatmap-aircraft">{{settings.aircraftType}}</span>
+				<md-button class="md-icon-button seat-refresh-btn" ng-click="onRefresh()">
+					<md-icon>refresh</md-icon>
+				</md-button>
+			</div> -->
+            <md-radio-group ng-repeat="deck in vm.decksSetting" ng-change="vm.onSelectCabin(vm.currentActive.clazz)" ng-show="$index === vm.currentActive.deck" ng-model="vm.currentActive.clazz">
+                <md-radio-button ng-value="cabin.clazz" class="md-primary" ng-repeat="cabin in deck" style="display: inline-block; margin-right: 15px">{{cabin.clazz}}</md-radio-button>
+            </md-radio-group>
+            <md-divider></md-divider>
+        </div>
+    </div>
+    <div id="seatmapContainer">
+        <div layout="row">
+            <div flex="70" ng-repeat="deck in vm.decksSetting" ng-show="vm.currentActive.deck === $index">
+                <!-- Column header -->
+                <div class="cabin-container">
+                    <canvas width="{{vm.config.canvasWidth}}" height="20" ng-repeat="cabin in deck" ng-attr-id="{{'seat-map-light-deck-' + $parent.$index + '-cabin-' + cabin.clazz}}-column" ng-show="cabin.clazz === vm.currentActive.clazz" class="seat-cabin"></canvas>
+                    <!-- Row data -->
+                    <div class="seat-container seat-scroll">
+                        <canvas width="{{vm.config.canvasWidth}}" height="{{cabin.heightInfo.height + cabin.heightInfo.additionalHeight + cabin.heightInfo.totalSeparationSpaceY}}" ng-attr-id="{{'seat-map-light-deck-' + $parent.$index + '-cabin-' + cabin.clazz}}" ng-repeat="cabin in deck" ng-show="cabin.clazz === vm.currentActive.clazz"></canvas>
+                    </div>
+                </div>
+            </div>
+            <md-fab-toolbar md-open="vm.fabToolbar.isOpen" md-direction="left" style="position: fixed; width: {{vm.config.canvasWidth}}px; opacity: 0.6">
+	            <md-fab-trigger class="align-with-text">
+	                <md-button aria-label="menu" class="md-fab md-primary">
+	                    <md-icon>menu</md-icon>
+	                </md-button>
+	            </md-fab-trigger>
+	            <md-toolbar>
+	                <md-fab-actions class="md-toolbar-tools">
+	                    <md-button aria-label="Show Legends" title="Show Legends" ng-click="vm.openLegendBottomSheet()" class="md-icon-button">
+	                        <md-icon>info</md-icon>
+	                    </md-button>
+	                    <md-button aria-label="Characteristic filter" title="Characteristic filter" ng-click="vm.openCharFilterBottomSheet()" class="md-icon-button">
+	                        <md-icon>filter_list</md-icon>
+	                    </md-button>
+	                </md-fab-actions>
+	            </md-toolbar>
+	        </md-fab-toolbar>
+        </div>
+    </div>
+</div>
