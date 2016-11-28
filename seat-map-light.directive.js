@@ -1,7 +1,7 @@
 (function () {
 	"use strict";
 
-	angular.module('SherlockedCustomDirective', ['ngMaterial'])
+	angular.module('directive.seatmap', ['ngMaterial'])
 		.constant('seatMapLightConstant', {
 			IS_TESTING: false,
 			COLUMN_ROW_TEXT_FONT: 'sans-serif',
@@ -56,16 +56,15 @@
 		return {
 			restrict: 'E',
 			templateUrl: 'seat-map-light/seat-map-light.tmpl.html',
-			scope:
-			{
+			scope:{
 				config: '=',
 				decksData: '=',
 				selectedNodes: '=',
 				onSelectNode: '&',
 				legends: '=',
-				seatDetails: '=',
 				maxSeatSelect: '=',
-				onSelected: '&'
+				onSelected: '&',
+				reloadSeatmap: '=?'
 				// onRefresh: '&',
 			},
 			controller: SeatMapLightController,
@@ -90,30 +89,20 @@
 	function SeatMapLightController($scope, $timeout, $mdDialog, seatMapLightConstant) {
 		var vm = this,
 			constant = seatMapLightConstant,
-			_paintedCanvas = {};	//Ex: {1: [J,Y,F], 2:[F]};
+			_paintedCanvas;
 
-		vm.decksSetting = [];
-		vm.currentActive = { deck: 0, clazz: 'Y'};
-		vm.fabToolbar = { isOpen: false}
+
 		//expose controller methods
 		vm.activate = activate;
 		vm.onSelectDeck = onSelectDeck;
 		vm.onSelectCabin = onSelectCabin;
 		vm.openLegendBottomSheet = openLegendBottomSheet;
-
+		vm.reloadSeatmap = reloadSeatmap;
 
 		//If decks data get from server, should wait for it.
 		function activate(){
-			// console.log('$scope', $scope);
-			// console.log('vm.config', vm.config);
-			// console.log('vm.decksData', vm.decksData);
-			// console.log('vm.seatDetails', vm.seatDetails);
-			// console.log('vm.legends', vm.legends);
-			// console.log('vm.maxSeatSelect', vm.maxSeatSelect);
-			// console.log('vm.selectedNodes', vm.selectedNodes);
+			resetSeatMapData();
 
-			vm.config.iconLocation = vm.config.iconLocation || 'seat-map-light/images/icons/';
-			vm.config.maxSelect = vm.config.maxSelect || 1;
 			//Init canvases height
 			vm.decksData.forEach(function(deck, index){
 				var setting = calculateCanvasesHeight(deck);
@@ -126,6 +115,21 @@
 				drawCabin(vm.currentActive.deck, vm.currentActive.clazz);
 				_paintedCanvas[vm.currentActive.deck] = [vm.currentActive.clazz];
 			});
+		}
+
+		function reloadSeatmap(){
+			resetSeatMapData();
+			activate();
+		}
+
+		function resetSeatMapData(){
+			_paintedCanvas = {};	//Ex: {1: [J,Y,F], 2:[F]};
+			vm.decksSetting = [];
+			vm.currentActive = { deck: 0, clazz: 'Y'};
+			vm.fabToolbar = { isOpen: false};
+			vm.config.iconLocation = vm.config.iconLocation || 'seat-map-light/images/icons/';
+			vm.config.maxSelect = vm.config.maxSeatSelect || 1;
+			vm.decksSetting = [];
 		}
 
 		function getCabinSetting(deckIndex, clazz){
@@ -164,7 +168,7 @@
 					clazz: cabin.clazz,
 					heightInfo: canvasStructure.heightInfo,
 					structure: canvasStructure.structure,
-					interactiveNodes: []
+					interactiveNodesInfo: []
 				});
 			});
 			return result;
@@ -503,7 +507,7 @@
 								width: structure.eachSquare.width,
 								height: structure.eachSquare.height
 							};
-						cabinSetting.interactiveNodes.push(nodeInfo);
+						cabinSetting.interactiveNodesInfo.push(nodeInfo);
 					}
                 }
                 lastUpX = lastUpX + structure.eachSquare.width + structure.eachSeparationX;
@@ -610,10 +614,9 @@
 
 			for(var i = 0; i < vm.legends.length; i++){
 				var legend = vm.legends[i];
-				if (legend.category === 'FACILITY' &&
-					isNodeHaveCharacteristic(node, legend.code)) {
-						subfix = legend.code;
-						break;
+				if (isNodeHaveCharacteristic(node, legend.code)) {
+					subfix = legend.code;
+					break;
 				}
 			}
 			return constant.FACILITY_PREFIX + '-' + subfix;
@@ -699,21 +702,21 @@
 			var y = event.offsetY;
 
 			var structure = getCabinSetting(vm.currentActive.deck, vm.currentActive.clazz).structure;
-			var nodes = getCabinSetting(vm.currentActive.deck, vm.currentActive.clazz).interactiveNodes;
+			var nodesInfo = getCabinSetting(vm.currentActive.deck, vm.currentActive.clazz).interactiveNodesInfo;
 			var seatData = getCabinData(vm.currentActive.deck, vm.currentActive.clazz);
 
-			for (var i = 0; i < nodes.length; i++) {
-				var clickedNode = nodes[i];
-				var minX = clickedNode.x;
-				var maxX = clickedNode.x + clickedNode.width;
-				var minY = clickedNode.y;
-				var maxY = clickedNode.y + clickedNode.height;
+			for (var i = 0; i < nodesInfo.length; i++) {
+				var clickedNodeInfo = nodesInfo[i];
+				var minX = clickedNodeInfo.x;
+				var maxX = clickedNodeInfo.x + clickedNodeInfo.width;
+				var minY = clickedNodeInfo.y;
+				var maxY = clickedNodeInfo.y + clickedNodeInfo.height;
 
 				var isInBox = (x > minX && x < maxX) && (y > minY && y < maxY);
 
-				if (isInBox) {
+				if (isInBox && isClickableNode(clickedNodeInfo.node)) {
 					var needChangeNode = false;
-					if (!!clickedNode.node.isSelected) {
+					if (!!clickedNodeInfo.node.isSelected) {
 						//What should be done when node is unselected
 						needChangeNode = true;
 					} else {
@@ -725,27 +728,31 @@
 					}
 
 					if(needChangeNode){
-						var prevImageName = getSeatImageName(clickedNode.node, vm.currentActive.clazz);
-						clickedNode.node.isSelected = !!!clickedNode.node.isSelected;
-						var imageName = getSeatImageName(clickedNode.node, vm.currentActive.clazz);
+						var prevImageName = getSeatImageName(clickedNodeInfo.node, vm.currentActive.clazz);
+						clickedNodeInfo.node.isSelected = !!!clickedNodeInfo.node.isSelected;
+						var imageName = getSeatImageName(clickedNodeInfo.node, vm.currentActive.clazz);
 
 						//TODO add colSpan feature
-						var xPos = clickedNode.x;
-						if(clickedNode.node.rowSpan && !isNaN(clickedNode.node.rowSpan)){
+						var xPos = clickedNodeInfo.x;
+						if(clickedNodeInfo.node.rowSpan && !isNaN(clickedNodeInfo.node.rowSpan)){
 	                		// calculate lastUpX for rowSpan
-	                		xPos = xPos +  (Number(clickedNode.node.rowSpan) - 1)
+	                		xPos = xPos +  (Number(clickedNodeInfo.node.rowSpan) - 1)
 	                				* (structure.eachSquare.width + structure.eachSeparationX)/2;
 	                	}
 
-						clearNode(canvas, xPos, clickedNode.y, clickedNode.width, clickedNode.height);
-						drawNode(canvas, imageName, xPos, clickedNode.y,
-							clickedNode.width, clickedNode.height, true);
+						clearNode(canvas, xPos, clickedNodeInfo.y, clickedNodeInfo.width, clickedNodeInfo.height);
+						drawNode(canvas, imageName, xPos, clickedNodeInfo.y,
+							clickedNodeInfo.width, clickedNodeInfo.height, true);
 
-						vm.onSelected({ "$node": clickedNode.node });
+						vm.onSelected({ "$node": clickedNodeInfo.node });
 						$scope.$apply();
 					}
 				}
 			}
+		}
+
+		function isClickableNode(node){
+			return !node.state || node.state === 'AVAILABLE';
 		}
 
 		function getNumOfSelectedNodes(){
